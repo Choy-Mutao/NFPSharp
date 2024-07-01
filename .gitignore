@@ -1,2 +1,5 @@
 .vs
 /NFPSharp/obj
+/NFPSharp/bin
+/NFPTest/bin
+/NFPTest/obj

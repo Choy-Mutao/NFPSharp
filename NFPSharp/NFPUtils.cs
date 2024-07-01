@@ -1,183 +1,316 @@
 ﻿namespace NFPSharp
 {
-    internal class NFPUtils
+    public class NFPPoint
     {
+        public double x, y;
+        public NFPPoint() : this(0, 0) { }
+
+        public NFPPoint(double _x, double _y)
+        {
+            x = _x;
+            y = _y;
+        }
+    }
+
+    public class NFPVector
+    {
+        public double x, y;
+        public NFPVector() : this(0, 0) { }
+
+        public NFPVector(double _x, double _y)
+        {
+            x = _x;
+            y = _y;
+        }
+    }
+
+    public static class MathUtil
+    {
+        public static bool AlmostEqual(double a, double b, double tolerance = 1e-9) => Math.Abs(a - b) < tolerance;
+
         /// <summary>
-        /// NFP 中的所有计算数的单位换算为单位为mm的整数型数据
         /// </summary>
-        public class NFPPoint
+        /// <param name="p1"></param>
+        /// <param name="p2"></param>
+        /// <param name="distance"></param>
+        /// <returns> true if points are within the given distance </returns>
+        static bool WithinDistance(NFPPoint p1, NFPPoint p2, double distance)
         {
-            #region Fields
-            public double X;
-            public double Y;
-            public bool marked { get; set; }
-            public int id { get; set; }
-            public double rotation { get; set; }
-            #endregion
-
-            #region Constructor
-            public NFPPoint(double _x, double _y)
-            {
-                X = _x; Y = _y;
-                marked = false;
-                id = -1;
-                rotation = 0;
-            }
-
-            public NFPPoint(NFPPoint src)
-            {
-                X = src.X; Y = src.Y;
-                marked = src.marked;
-                id = src.id;
-                rotation = src.rotation;
-            }
-            #endregion
-
-            #region Operators
-            public static bool operator ==(NFPPoint p0, NFPPoint p1) => (p0.X == p1.X && p0.Y == p1.Y);
-
-            public static bool operator !=(NFPPoint p0, NFPPoint p1) => (p0.X != p1.X || p0.Y != p1.Y);
-            #endregion
-
-            #region Methods
-            public double DistanceTo(NFPPoint p) => Math.Sqrt(X * p.X + Y * p.Y);
-            public double Dot(NFPPoint P) => X * P.X + Y * P.Y;
-            public double Dot(NFPVector V) => X * V.X + Y * V.Y;
-            #endregion
+            var dx = p1.x - p2.x;
+            var dy = p1.y - p2.y;
+            return ((dx * dx + dy * dy) < distance * distance);
         }
 
-        public class NFPVector
+        static double DegreesToRadians(double angle) => angle * (Math.PI / 180);
+
+        static double RadiansToDegrees(double angle) => angle * (180 / Math.PI);
+
+        /// <summary>
+        /// normalize vector into a unit vector
+        /// </summary>
+        /// <param name="v"></param>
+        /// <returns></returns>
+        static NFPVector NormalizeVector(NFPVector v)
         {
-            #region Fields
-            public double X;
-            public double Y;
-            public NFPPoint start { get; set; }
+            if (AlmostEqual(v.x * v.x + v.y * v.y, 1))
+                return v; // given vector was already a unit vector
+            var len = Math.Sqrt(v.x * v.x + v.y * v.y);
+            var inverse = 1 / len;
 
-            public NFPPoint end { get; set; }
-            #endregion
-
-            #region Constructor
-            public NFPVector(double x, double y, NFPPoint s, NFPPoint e)
-            {
-                X = x; Y = y;
-                start = s; end = e;
-            }
-
-            public NFPVector(NFPPoint s, NFPPoint e)
-            {
-                X = e.X - s.X;
-                Y = e.Y - s.Y;
-                start = s; end = e;
-            }
-
-            public NFPVector(double x, double y)
-            {
-                X = x; Y = y;
-                start = new NFPPoint(0, 0);
-                end = new NFPPoint(x, y);
-            }
-
-            public NFPVector(NFPVector normal)
-            {
-                X = normal.X; Y = normal.Y;
-                start = new NFPPoint(0, 0);
-                end = new NFPPoint(normal.X, normal.Y);
-            }
-            #endregion
-
-            #region Methods
-            public double Length() => Math.Sqrt(X * X + Y * Y);
-
-            public void Normalize()
-            {
-                var l = Length(); X /= l; Y /= l;
-            }
-
-            public double Dot(NFPVector prevector) => X * prevector.X + Y * prevector.Y;
-
-            #endregion
+            double x = v.x * inverse, y = v.y * inverse;
+            return new NFPVector(x, y);
         }
 
-        public class TreeNode<T> : List<T>
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <param name="p"></param>
+        /// <returns>
+        ///  true if p lies on the line segment defined by AB, but <b>not at any endpoints</b>
+        /// </returns>
+        public static bool OnSegment(NFPPoint A, NFPPoint B, NFPPoint p, double tolerance)
         {
-            public TreeNode() : base()
-            { }
+            double lengthSqr1 = (p.x - A.x) * (p.x - A.x) + (p.y - A.y) * (p.y - A.y);
+            double lengthSqr2 = (p.x - B.x) * (p.x - B.x) + (p.y - B.y) * (p.y - B.y);
+            if (AlmostEqual(lengthSqr1, 0, tolerance) || AlmostEqual(lengthSqr2, 0, tolerance)) return false;
 
-            public TreeNode(int capacity) : base(capacity) { }
+            double lengthSqr_ref = (A.x - B.x) * (A.x - B.x) + (A.y - B.y) * (A.y - B.y);
+            double l1 = Math.Sqrt(lengthSqr1);
+            double l2 = Math.Sqrt(lengthSqr2);
+            double l_ref = Math.Sqrt(lengthSqr_ref);
 
-            public TreeNode(List<T> values) : base(values) { }
-
-            public TreeNode(TreeNode<T> values) : base(values)
-            {
-                source = values.source;
-                id = values.id;
-                rotation = values.rotation;
-                marked = values.marked;
-                offsetx = values.offsetx;
-                offsety = values.offsety;
-            }
-
-            public int source { get; set; } = -1;
-            public int id { get; set; } = -1;
-            public List<TreeNode<T>> children { get; set; }
-            public TreeNode<T> parent { get; set; }
-            public double rotation { get; set; } = 0;
-            public bool marked { get; set; } = false;
-            public double offsetx { get; set; } = 0;
-            public double offsety { get; set; } = 0;
-
-            public List<T> ToList()
-            {
-                List<T> list = new List<T>();
-                this.ForEach(item => list.Add(item));
-                return list;
-            }
+            if (!AlmostEqual(l1 + l2, l_ref, tolerance)) return false;
+            return true;
         }
 
-        public class NFP_Key
+        /// <summary>
+        /// returns the intersection of AB and EF
+        /// or null if there are no intersections or other numerical error
+        /// if the infinite flag is set, AE and EF describe infinite lines without 
+        /// endpoints, they are finite line segments otherwise
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <param name="E"></param>
+        /// <param name="F"></param>
+        /// <param name="infinite"></param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public static NFPVector LineIntersect(NFPPoint A, NFPPoint B, NFPPoint E, NFPPoint F, bool infinite = false, double tolerance = 1e-9)
         {
-            public int A { get; set; } // store the id to minum memory
-            public int B { get; set; } // store the id to minum memory
-            public bool Inside { get; set; }
-            public double Arotation { get; set; }
-            public double Brotation { get; set; }
-            public NFP_Key()
-            {
-                A = -1; B = -1; Inside = false; Arotation = 0; Brotation = 0;
-            }
-            public NFP_Key(int a, int b, bool inside, double arotation, double brotation)
-            {
-                A = a;
-                B = b;
-                Inside = inside;
-                Arotation = arotation;
-                Brotation = brotation;
-            }
-        }
+            double a1, a2, b1, b2, c1, c2, x, y;
 
-        public class NFP_Value
-        {
-            public NFP_Key Key { get; set; }
-            public List<TreeNode<NFPPoint>> Value { get; set; }
-            public NFP_Value(NFP_Key key, List<TreeNode<NFPPoint>> value)
-            {
-                Key = key;
-                Value = value;
-            }
-        }
+            a1 = B.y - A.y;
+            b1 = A.x - B.x;
+            c1 = B.x * A.y - A.x * B.y;
+            a2 = F.y - E.y;
+            b2 = E.x - F.x;
+            c2 = F.x * E.y - E.x * F.y;
 
-        public class NFP_Pair
-        {
-            public NFP_Pair(TreeNode<NFPPoint> bin, TreeNode<NFPPoint> part, NFP_Key key)
+            var denom = a1 * b2 - a2 * b1;
+
+            x = (b1 * c2 - b2 * c1) / denom;
+            y = (a2 * c1 - a1 * c2) / denom;
+
+            if (double.IsFinite(x) || double.IsFinite(y)) return null;
+
+            if(!infinite)
             {
-                A = bin;
-                B = part;
-                Key = key;
+                // coincident points do not count as intersecting
+                if (Math.Abs(A.x - B.x) > tolerance && ((A.x < B.x) ? x < A.x || x > B.x : x > A.x || x < B.x)) return null;
+                if (Math.Abs(A.y - B.y) > tolerance && ((A.y < B.y) ? y < A.y || y > B.y : y > A.y || y < B.y)) return null;
+
+                if (Math.Abs(E.x - F.x) > tolerance && ((E.x < F.x) ? x < E.x || x > F.x : x > E.x || x < F.x)) return null;
+                if (Math.Abs(E.y - F.y) > tolerance && ((E.y < F.y) ? y < E.y || y > F.y : y > E.y || y < F.y)) return null;
             }
-            public TreeNode<NFPPoint> A { get; set; }
-            public TreeNode<NFPPoint> B { get; set; }
-            public NFP_Key Key { get; set; }
+
+            return new NFPVector(x, y);
         }
+    }
+
+    public class NFPUtils
+    {
+        ///// <summary>
+        ///// NFP 中的所有计算数的单位换算为单位为mm的整数型数据
+        ///// </summary>
+        //public class NFPPoint
+        //{
+        //    #region Fields
+        //    public double X;
+        //    public double Y;
+        //    public bool marked { get; set; }
+        //    public int id { get; set; }
+        //    public double rotation { get; set; }
+        //    #endregion
+
+        //    #region Constructor
+        //    public NFPPoint(double _x, double _y)
+        //    {
+        //        X = _x; Y = _y;
+        //        marked = false;
+        //        id = -1;
+        //        rotation = 0;
+        //    }
+
+        //    public NFPPoint(NFPPoint src)
+        //    {
+        //        X = src.X; Y = src.Y;
+        //        marked = src.marked;
+        //        id = src.id;
+        //        rotation = src.rotation;
+        //    }
+        //    #endregion
+
+        //    #region Operators
+        //    public static bool operator ==(NFPPoint p0, NFPPoint p1) => (p0.X == p1.X && p0.Y == p1.Y);
+
+        //    public static bool operator !=(NFPPoint p0, NFPPoint p1) => (p0.X != p1.X || p0.Y != p1.Y);
+        //    #endregion
+
+        //    #region Methods
+        //    public double DistanceTo(NFPPoint p) => Math.Sqrt(X * p.X + Y * p.Y);
+        //    public double Dot(NFPPoint P) => X * P.X + Y * P.Y;
+        //    public double Dot(NFPVector V) => X * V.X + Y * V.Y;
+        //    #endregion
+        //}
+
+        //public class NFPVector
+        //{
+        //    #region Fields
+        //    public double X;
+        //    public double Y;
+        //    public NFPPoint start { get; set; }
+
+        //    public NFPPoint end { get; set; }
+        //    #endregion
+
+        //    #region Constructor
+        //    public NFPVector(double x, double y, NFPPoint s, NFPPoint e)
+        //    {
+        //        X = x; Y = y;
+        //        start = s; end = e;
+        //    }
+
+        //    public NFPVector(NFPPoint s, NFPPoint e)
+        //    {
+        //        X = e.X - s.X;
+        //        Y = e.Y - s.Y;
+        //        start = s; end = e;
+        //    }
+
+        //    public NFPVector(double x, double y)
+        //    {
+        //        X = x; Y = y;
+        //        start = new NFPPoint(0, 0);
+        //        end = new NFPPoint(x, y);
+        //    }
+
+        //    public NFPVector(NFPVector normal)
+        //    {
+        //        X = normal.X; Y = normal.Y;
+        //        start = new NFPPoint(0, 0);
+        //        end = new NFPPoint(normal.X, normal.Y);
+        //    }
+        //    #endregion
+
+        //    #region Methods
+        //    public double Length() => Math.Sqrt(X * X + Y * Y);
+
+        //    public void Normalize()
+        //    {
+        //        var l = Length(); X /= l; Y /= l;
+        //    }
+
+        //    public double Dot(NFPVector prevector) => X * prevector.X + Y * prevector.Y;
+
+        //    #endregion
+        //}
+
+        //public class TreeNode<T> : List<T>
+        //{
+        //    public TreeNode() : base()
+        //    { }
+
+        //    public TreeNode(int capacity) : base(capacity) { }
+
+        //    public TreeNode(List<T> values) : base(values) { }
+
+        //    public TreeNode(TreeNode<T> values) : base(values)
+        //    {
+        //        source = values.source;
+        //        id = values.id;
+        //        rotation = values.rotation;
+        //        marked = values.marked;
+        //        offsetx = values.offsetx;
+        //        offsety = values.offsety;
+        //    }
+
+        //    public int source { get; set; } = -1;
+        //    public int id { get; set; } = -1;
+        //    public List<TreeNode<T>> children { get; set; }
+        //    public TreeNode<T> parent { get; set; }
+        //    public double rotation { get; set; } = 0;
+        //    public bool marked { get; set; } = false;
+        //    public double offsetx { get; set; } = 0;
+        //    public double offsety { get; set; } = 0;
+
+        //    public List<T> ToList()
+        //    {
+        //        List<T> list = new List<T>();
+        //        this.ForEach(item => list.Add(item));
+        //        return list;
+        //    }
+        //}
+
+        //public class NFP_Key
+        //{
+        //    public int A { get; set; } // store the id to minum memory
+        //    public int B { get; set; } // store the id to minum memory
+        //    public bool Inside { get; set; }
+        //    public double Arotation { get; set; }
+        //    public double Brotation { get; set; }
+        //    public NFP_Key()
+        //    {
+        //        A = -1; B = -1; Inside = false; Arotation = 0; Brotation = 0;
+        //    }
+        //    public NFP_Key(int a, int b, bool inside, double arotation, double brotation)
+        //    {
+        //        A = a;
+        //        B = b;
+        //        Inside = inside;
+        //        Arotation = arotation;
+        //        Brotation = brotation;
+        //    }
+        //}
+
+        //public class NFP_Value
+        //{
+        //    public NFP_Key Key { get; set; }
+        //    public List<TreeNode<NFPPoint>> Value { get; set; }
+        //    public NFP_Value(NFP_Key key, List<TreeNode<NFPPoint>> value)
+        //    {
+        //        Key = key;
+        //        Value = value;
+        //    }
+        //}
+
+        //public class NFP_Pair
+        //{
+        //    public NFP_Pair(TreeNode<NFPPoint> bin, TreeNode<NFPPoint> part, NFP_Key key)
+        //    {
+        //        A = bin;
+        //        B = part;
+        //        Key = key;
+        //    }
+        //    public TreeNode<NFPPoint> A { get; set; }
+        //    public TreeNode<NFPPoint> B { get; set; }
+        //    public NFP_Key Key { get; set; }
+        //}
+
+
+
         ///// <summary>
         ///// The util kit for no fit polygons
         ///// </summary>
