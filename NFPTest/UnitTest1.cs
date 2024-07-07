@@ -1,18 +1,48 @@
 using NFPSharp;
+using QuickSVG;
 
 namespace NFPTest
 {
     public class Tests
     {
+        private void DeleteFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error when delete file : {ex.Message}");
+            }
+        }
+
         [SetUp]
         public void Setup()
         {
         }
 
         [Test]
-        public void Test1()
+        public void Test_QuickSvg()
         {
-            Assert.Pass();
+            double[][] points =
+            [
+                [100, 10],
+                [0, 0],
+                [100, 90],
+                [100, 10],
+            ];
+
+            QuickSVGWriter writer = new QuickSVGWriter();
+            QuickSVGUtil.AddSolution(writer, new PathD(points), true);
+            string filename = @"..\..\..\Test_QuickSvg.svg";
+            QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+            var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+            DeleteFile(filename);
+            Assert.IsTrue(true);
         }
 
         /// <summary>
@@ -114,6 +144,107 @@ namespace NFPTest
 
             Assert.IsTrue(OnSegment(A, B, p, 1e-8) == false);
             Assert.IsTrue(MathUtil.OnSegment(A, B, p, 1e-8) == false);
+        }
+
+        [Test]
+        public void Test_PointDistance()
+        {
+            NFPPoint p, s1, s2;
+
+            // horizontal line
+            p = new NFPPoint(0, 0);
+            s1 = new NFPPoint(-10, 3);
+            s2 = new NFPPoint(10, 3);
+
+            NFPPoint point;
+
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(0, 1)) == 3);
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(1, 1)) == 3 * Math.Sqrt(2));
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(-1, 1)) == 3 * Math.Sqrt(2));
+
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(0, -1)) == -3);
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(-1, -1)) == -3 * Math.Sqrt(2));
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(1, -1)) == -3 * Math.Sqrt(2));
+
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(-10, 3)) == null);
+            Assert.IsTrue(NFPUtils.PointDistance(p, s1, s2, new NFPVector(10, 3)) == null);
+        }
+
+        [Test]
+        public void Test_SegmentDistance()
+        {
+            NFPPoint A = new NFPPoint(10, 0);
+            NFPPoint B = new NFPPoint(10, 10);
+
+            NFPPoint E = new NFPPoint(15, 0);
+            NFPPoint F = new NFPPoint(15, 10);
+
+            var d = NFPUtils.SegmentDistance(A, B, E, F, new NFPVector(1, 0));
+            Assert.IsTrue(d != null);
+        }
+
+        [Test]
+        public void Test_PolygonSlideDistance()
+        {
+            double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
+            double[][] b = [[15, 0], [20, 0], [20, 10], [15, 10]];
+
+            NFPPolygon A = new NFPPolygon(a);
+            NFPPolygon B = new NFPPolygon(b);
+
+            var d = NFPUtils.PolygonSlideDistance(A, B, new NFPVector(1, 0), false);
+
+            Assert.IsTrue(d != null);
+            Assert.IsTrue(d!.Value == 5);
+
+            QuickSVGWriter writer = new QuickSVGWriter();
+            QuickSVGUtil.AddSolution(writer, new PathD(a), true);
+            QuickSVGUtil.AddSolution(writer, new PathD(b), true);
+            string filename = @"..\..\..\Test_PolygonSlideDistance.svg";
+            QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+            var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+            DeleteFile(filename);
+            Assert.IsTrue(true);
+        }
+
+        [Test]
+        public void Test_SearchStartPoint()
+        {
+            double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
+            double[][] b = [[15, 0], [20, 0], [20, 5], [15, 5]];
+
+            NFPPolygon A = new NFPPolygon(a);
+            NFPPolygon B = new NFPPolygon(b);
+            var result = NFPUtils.SearchStartPoint(A,B, true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(A, Has.Count.EqualTo(a.Length));
+                Assert.That(result is not null, Is.True);
+            });
+        }
+
+        [Test]
+        public void Test_NoFitPolygon()
+        {
+            double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
+            double[][] b = [[15, 0], [20, 0], [20, 5], [15, 5]];
+
+            NFPPolygon A = new NFPPolygon(a);
+            NFPPolygon B = new NFPPolygon(b);
+
+            var result = NFPUtils.NoFitPolygon(A, B, true, true);
+            var paths = result?.Select(item => new PathD(item.Select(pnt => new double[] { pnt.x, pnt.y })));
+
+            QuickSVGWriter writer = new QuickSVGWriter();
+            QuickSVGUtil.AddSubject(writer, new PathD(a));
+            QuickSVGUtil.AddSubject(writer, new PathD(b));
+            QuickSVGUtil.AddSolution(writer, new PathsD(paths!), true);
+            string filename = @"..\..\..\Test_NoFitPolygon.svg";
+            QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+            var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+            Assert.That(true, Is.True);
+            //DeleteFile(filename);
         }
     }
 }
