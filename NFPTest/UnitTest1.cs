@@ -208,6 +208,86 @@ namespace NFPTest
         }
 
         [Test]
+        public void Test_PointInPolygon()
+        {
+            double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
+            double[][] b = [[15, 0], [20, 0], [20, 5], [15, 5]];
+
+            NFPPolygon A = new NFPPolygon(a), B = new NFPPolygon(b);
+            //A.Add(A.First()); B.Add(B.First());
+
+            // drawing test
+            QuickSVGWriter writer = new QuickSVGWriter();
+            QuickSVGUtil.AddSubject(writer, new PathD(a));
+            QuickSVGUtil.AddSubject(writer, new PathD(b));
+
+            int in_count = 0;
+            for (int i = 0; i < A.Count; i++)
+            {
+                if (!A[i].marked)
+                {
+                    A[i].marked = true;
+                    for (int j = 0; j < B.Count; j++)
+                    {
+                        // 1. step 
+                        B.offsetx = A[i].x - B[j].x;
+                        B.offsety = A[i].y - B[j].y;
+
+                        double[][] after_path = new double[B.Count][];
+                        bool? Binside = null;
+                        for(int k = 0; k < B.Count; k++)
+                        {
+                            var inpoly = NFPUtils.PointInPolygon(new NFPPoint(B[k].x + B.offsetx, B[k].y + B.offsety), A, 1e-9);
+                            after_path[k] = [B[k].x + B.offsetx, B[k].y + B.offsety];
+
+                            if (inpoly is not null && inpoly.Value == true) in_count++;
+                        }
+                        QuickSVGUtil.AddSolution(writer, new PathD(after_path), true);
+                    }
+                }
+            }
+
+            string filename = @"..\..\..\Test_PointInPolygon.svg";
+            QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+            var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+
+            Assert.That(in_count, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void Test_PolygonProjectionDistance()
+        {
+            double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
+            double[][] b = [[15, 0], [20, 0], [20, 5], [15, 5]];
+
+            NFPPolygon A = new NFPPolygon(a);
+            NFPPolygon B = new NFPPolygon(b);
+
+            NFPVector dir = new NFPVector(1, 0.2);
+
+            var result = NFPUtils.PolygonProjectionDistance(A, B, dir, 1e-9);
+            if (result is not null)
+            {
+                NFPVector vec = dir;
+                vec.SetLength(result.Value);
+
+                double[][] after_path = B.Select(pnt => new double[] { pnt.x + vec.x, pnt.y + vec.y }).ToArray();
+
+                // drawing test
+                QuickSVGWriter writer = new QuickSVGWriter();
+                QuickSVGUtil.AddSubject(writer, new PathD(a));
+                QuickSVGUtil.AddSubject(writer, new PathD(b));
+                QuickSVGUtil.AddSolution(writer, new PathD(after_path), true);
+                string filename = @"..\..\..\Test_NoFitPolygon.svg";
+                QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+                var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+            }
+
+            Assert.That(result, Is.Not.Null);
+        }
+
+
+        [Test]
         public void Test_SearchStartPoint()
         {
             double[][] a = [[0, 0], [10, 0], [10, 10], [0, 10]];
@@ -215,7 +295,22 @@ namespace NFPTest
 
             NFPPolygon A = new NFPPolygon(a);
             NFPPolygon B = new NFPPolygon(b);
-            var result = NFPUtils.SearchStartPoint(A,B, true);
+            var result = NFPUtils.SearchStartPoint(A, B, true);
+
+            if (result is not null)
+            {
+                var vec = result;
+                double[][] after_path = B.Select(pnt => new double[] { pnt.x + vec.x, pnt.y + vec.y }).ToArray();
+
+                // drawing test
+                QuickSVGWriter writer = new QuickSVGWriter();
+                QuickSVGUtil.AddSubject(writer, new PathD(a));
+                QuickSVGUtil.AddSubject(writer, new PathD(b));
+                QuickSVGUtil.AddSolution(writer, new PathD(after_path), true);
+                string filename = @"..\..\..\Test_SearchStartPoint.svg";
+                QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
+                var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
+            }
 
             Assert.Multiple(() =>
             {

@@ -62,9 +62,12 @@
         {
             double unity = (x * x + y * y);
             if (unity == 0) throw new DivideByZeroException("This vector is zero");
+
+            int sign = Math.Sign(D);
+
             double d = Math.Sqrt(D * D / unity);
-            x *= d;
-            y *= d;
+            x *= d * sign;
+            y *= d * sign;
         }
     }
 
@@ -78,6 +81,12 @@
             AddRange(double_array.Select(item => new NFPPoint(item[0], item[1])));
         }
         public NFPPolygon(IEnumerable<NFPPoint> points) : base(points) { }
+
+        public NFPPolygon(NFPPolygon _src) : base(_src)
+        {
+            offsetx = _src.offsetx;
+            offsety = _src.offsety;
+        }
 
         public double offsetx = 0;
         public double offsety = 0;
@@ -222,7 +231,6 @@
                     var vectors = GenerateTranslationVectors(touching, ref A, ref B).ToArray();
 
                     // todo: there should be a faster way to reject vectors that will cause immediate intersection. For now just check them all
-
                     NFPVector? translate = null;
                     double maxd = 0;
                     for (int i = 0; i < vectors.Length; i++)
@@ -300,7 +308,7 @@
                     {
                         for (int i = 0; i < NFP.Count - 1; i++)
                         {
-                            if (MathUtil.AlmostEqual(referencex, NFP[i].x) && MathUtil.AlmostEqual(referencey, NFP[i].y))
+                            if (MathUtil.AlmostEqual(referencex, NFP[i].x, tolerance) && MathUtil.AlmostEqual(referencey, NFP[i].y, tolerance))
                             {
                                 looped = true;
                             }
@@ -322,10 +330,9 @@
                 }
 
                 if (NFP != null && NFP.Count > 0) NFPlist.Add(NFP);
-
                 if (!searchEdges) break; // only get outer NFP or first inner NFP;
 
-                startpoint = SearchStartPoint(A, B, inside);
+                startpoint = SearchStartPoint(A, B, inside, NFPlist);
             }
 
             return NFPlist;
@@ -461,18 +468,18 @@
             if (A.First() != A.Last()) A.Add(A.First());
             if (B.First() != B.Last()) B.Add(B.First());
 
-            for (int i = 0; i < A.Count - 1; i++)
+            for (int i = 0; i < A.Count; i++) // A is stable
             {
                 if (!A[i].marked)
                 {
                     A[i].marked = true;
-                    for (int j = 0; j < B.Count; j++)
+                    for (int j = 0; j < B.Count; j++) // B is movable
                     {
                         B.offsetx = A[i].x - B[j].x;
                         B.offsety = A[i].y - B[j].y;
 
                         bool? Binside = null;
-                        for (int k = 0; k < B.Count; k++)
+                        for (int k = 0; k < B.Count; k++) // if any point of B in A?
                         {
                             var inpoly = PointInPolygon(new NFPPoint(B[k].x + B.offsetx, B[k].y + B.offsety), A, tolerance);
                             if (inpoly != null)
@@ -482,16 +489,16 @@
                             }
                         }
 
-                        if (Binside == null) return null; // A and B are the same
+                        if (Binside == null) return null; // A and B are the same, if a can include b
                         var startPoint = new NFPPoint(B.offsetx, B.offsety);
-                        if (((Binside.Value == true && inside) || (Binside.Value == false && !inside)) && !Intersect(A, B, tolerance) && !InNfp(startPoint, NFP, tolerance)) return startPoint;
+                        if (((Binside.Value == true && inside) || (Binside.Value == false && !inside)) && !Intersect(A, B, tolerance) && (!InNfp(startPoint, NFP!, tolerance))) return startPoint;
 
                         // slide B along vector
                         var vx = A[i + 1].x - A[i].x;
                         var vy = A[i + 1].y - A[i].y;
 
-                        double? d1 = polygonProjectionDistance(A, B, new NFPPoint(vx, vy));
-                        double? d2 = polygonProjectionDistance(A, B, new NFPPoint(-vx, -vy));
+                        double? d1 = PolygonProjectionDistance(A, B, new NFPVector(vx, vy), tolerance);
+                        double? d2 = PolygonProjectionDistance(B, A, new NFPVector(-vx, -vy), tolerance);
 
                         double? d = null;
 
@@ -511,7 +518,7 @@
 
                         var vd2 = vx * vx + vy * vy;
 
-                        if((d.Value * d.Value) < vd2 && !MathUtil.AlmostEqual(d.Value * d.Value, vd2))
+                        if ((d.Value * d.Value) < vd2 && !MathUtil.AlmostEqual(d.Value * d.Value, vd2))
                         {
                             var vd = Math.Sqrt(vx * vx + vy * vy);
                             vx *= d.Value / vd;
@@ -521,20 +528,18 @@
                         B.offsetx += vx;
                         B.offsety += vy;
 
-                        for(int k = 0; k < B.Count; k++)
+                        for (int k = 0; k < B.Count; k++)
                         {
                             var inpoly = PointInPolygon(new NFPPoint(B[k].x + B.offsetx, B[k].y + B.offsety), A, tolerance);
-                            if(inpoly != null)
+                            if (inpoly != null)
                             {
                                 Binside = inpoly;
                                 break;
                             }
                         }
                         startPoint = new NFPPoint(B.offsetx, B.offsety);
-                        if (((Binside.Value == true && inside) || (Binside.Value == false && !inside)) && !Intersect(A, B, tolerance) && !InNfp(startPoint, NFP, tolerance))
-                        {
+                        if (((Binside.Value == true && inside) || (Binside.Value == false && !inside)) && !Intersect(A, B, tolerance) && (!InNfp(startPoint, NFP!, tolerance)))
                             return startPoint;
-                        }
                     }
                 }
             }
@@ -569,16 +574,16 @@
         /// <param name="A"></param>
         /// <param name="B"></param>
         /// <returns></returns>
-        private static bool Intersect(in NFPPolygon A, in NFPPolygon B, double tolerance)
+        private static bool Intersect(in NFPPolygon _A, in NFPPolygon _B, double tolerance)
         {
+            var A = new NFPPolygon(_A);
+            var B = new NFPPolygon(_B);
+
             var Aoffsetx = A.offsetx;
             var Aoffsety = A.offsety;
 
             var Boffsetx = B.offsetx;
             var Boffsety = B.offsety;
-
-            //A = A.slice(0);
-            //B = B.slice(0);
 
             for (int i = 0; i < A.Count - 1; i++)
             {
@@ -697,9 +702,62 @@
             return false;
         }
 
-        private static double? polygonProjectionDistance(NFPPolygon A, NFPPolygon B, NFPPoint p)
+        /// <summary>
+        /// Project each point of B onto A in the given direction, and return the min distance
+        /// </summary>
+        /// <param name="_A"></param>
+        /// <param name="_B"></param>
+        /// <param name="direction"></param>
+        /// <param name="tolerance"></param>
+        /// <returns></returns>
+        public static double? PolygonProjectionDistance(in NFPPolygon _A, in NFPPolygon _B, NFPVector direction, double tolerance)
         {
-            throw new NotImplementedException();
+            double Boffsetx = _B.offsetx, Boffsety = _B.offsety;
+            double Aoffsetx = _A.offsetx, Aoffsety = _A.offsety;
+
+            NFPPolygon edgeA = new(_A), edgeB = new(_B);
+
+            // close the loop for polygons
+            if (edgeA.First() != edgeA.Last())
+                edgeA.Add(edgeA.First());
+            if (edgeB.First() != edgeB.Last())
+                edgeB.Add(edgeB.First());
+
+            double? distance = null, d = null;
+            NFPPoint p, s1, s2;
+
+
+            for (int i = 0; i < edgeB.Count; i++)
+            {
+                // the shortest/most negative projection of B onto A
+                double? minprojection = null;
+                NFPPoint? minp = null;
+                for (int j = 0; j < edgeA.Count - 1; j++)
+                {
+                    p = new NFPPoint(edgeB[i].x + Boffsetx, edgeB[i].y + Boffsety);
+                    s1 = new NFPPoint(edgeA[j].x + Aoffsetx, edgeA[j].y + Aoffsety);
+                    s2 = new NFPPoint(edgeA[j + 1].x + Aoffsetx, edgeA[j + 1].y + Aoffsety);
+
+                    if (Math.Abs((s2.y - s1.y) * direction.x - (s2.x - s1.x) * direction.y) < tolerance)
+                        continue;
+
+                    // project point, ignore edge boundaries
+                    d = PointDistance(p, s1, s2, direction);
+
+                    if (d is not null && (minprojection is null || d < minprojection))
+                    {
+                        minprojection = d;
+                        minp = p;
+                    }
+
+                    if (minprojection is not null && (distance is null || minprojection > distance))
+                    {
+                        distance = minprojection;
+                    }
+                }
+            }
+
+            return distance;
         }
 
         /// <summary>
@@ -746,7 +804,7 @@
             return new NFPPoint(x, y);
         }
 
-        private static bool? PointInPolygon(NFPPoint point, NFPPolygon polygon, double tolerance)
+        public static bool? PointInPolygon(NFPPoint point, NFPPolygon polygon, double tolerance)
         {
             if (polygon.Count < 3)
             {
@@ -771,7 +829,7 @@
 
                 if (MathUtil.OnSegment(new NFPPoint(xi, yi), new NFPPoint(xj, yj), point, tolerance))
                 {
-                    return false; // exactly on the segment
+                    return null; // exactly on the segment
                 }
 
                 if (MathUtil.AlmostEqual(xi, xj, tolerance) && MathUtil.AlmostEqual(yi, yj, tolerance))
