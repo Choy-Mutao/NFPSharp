@@ -350,10 +350,12 @@
             List<TouchType> touching = new List<TouchType>();
             for (int i = 0; i < A.Count; i++)
             {
-                int nexti = (i == A.Count - 1) ? 0 : i + 1;
+                int nexti = (i == A.Count - 1) ? 0 : i + 1; // A should be loop
+
                 for (int j = 0; j < B.Count; j++)
                 {
-                    int nextj = (j == B.Count - 1) ? 0 : j + 1;
+                    int nextj = (j == B.Count - 1) ? 0 : j + 1; // B should be loop
+
                     if (MathUtil.AlmostEqual(A[i].x, B[j].x + B.offsetx) && MathUtil.AlmostEqual(A[i].y, B[j].y + B.offsety))
                     {
                         touching.Add(new TouchType(0, i, j));
@@ -362,7 +364,7 @@
                     {
                         touching.Add(new TouchType(1, nexti, j));
                     }
-                    else if (true)
+                    else if (MathUtil.OnSegment(new NFPPoint(B[j].x + B.offsetx, B[j].y + B.offsety), new NFPPoint(B[nextj].x + B.offsetx, B[nextj].y + B.offsety), A[i], tolerance))
                     {
                         touching.Add(new TouchType(2, i, nextj));
                     }

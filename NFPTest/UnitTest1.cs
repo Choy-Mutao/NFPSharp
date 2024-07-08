@@ -339,7 +339,6 @@ namespace NFPTest
             QuickSVGUtil.SaveToFile(writer, filename, FillRule.NonZero, 800, 600, 10);
             var p = QuickSVGUtil.OpenFileWithDefaultApp(filename);
             Assert.That(true, Is.True);
-            //DeleteFile(filename);
         }
     }
 }
