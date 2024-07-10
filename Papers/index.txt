@@ -1,0 +1,36 @@
+
+以下是一些开源的嵌套软件，它们可以帮助解决二维或三维的材料优化利用问题，如切割、排样等。嵌套软件广泛应用于制造业，包括金属加工、纺织、印刷、木工等领域。
+
+1. Deepnest
+简介：Deepnest 是一款开源的 2D 切割优化软件，主要用于激光切割、等离子切割和水刀切割等应用。
+功能：支持 DXF 文件导入，自动排样，支持多种优化算法，提供图形用户界面（GUI）。
+官方网站和代码仓库：Deepnest.io
+2. SVGNest
+简介：SVGNest 是一个基于 JavaScript 的开源项目，专注于 2D 排样优化，特别适用于激光切割和 CNC 加工。
+功能：支持 SVG 文件格式，基于遗传算法进行优化，易于集成到 web 应用中。
+官方网站和代码仓库：GitHub - SVGNest
+3. libnest2d
+简介：libnest2d 是一个用于 2D 切割优化的 C++ 库，设计为高效和灵活，适合集成到其他软件中。
+功能：提供核心的嵌套算法，支持多种形状和优化策略，适用于开发定制解决方案。
+代码仓库：GitHub - libnest2d
+4. NestPy
+简介：NestPy 是一个 Python 库，用于 2D 材料的切割优化和嵌套。
+功能：支持多边形嵌套，基于遗传算法进行优化，易于在 Python 环境中使用和扩展。
+代码仓库：GitHub - NestPy
+5. Cuttlebone
+简介：Cuttlebone 是一个为激光切割设计的 2D 嵌套软件，提供命令行界面和 Python API。
+功能：支持 DXF 文件格式，提供自动和手动嵌套选项，具有灵活的配置选项。
+代码仓库：GitHub - Cuttlebone
+6. BlenderCAM
+简介：BlenderCAM 是 Blender 的一个插件，支持 3D 切割路径生成和嵌套优化，适用于 CNC 加工。
+功能：集成到 Blender 中，支持多种切割策略和路径优化，适合复杂的 3D 加工任务。
+官方网站和代码仓库：GitHub - BlenderCAM
+7. OpenNest
+简介：OpenNest 是一个用于 Grasshopper 的插件，Grasshopper 是 Rhino 的一个算法建模插件，OpenNest 提供 2D 排样和嵌套功能。
+功能：支持多边形嵌套，提供图形界面和编程接口，适合建筑和工业设计领域。
+官方网站和代码仓库：GitHub - OpenNest
+8. NFP (Nested Factory Problem Solver)
+简介：NFP 是一个基于 Python 的开源项目，用于解决 2D 嵌套和排样问题。
+功能：支持多种形状和约束条件，基于启发式算法进行优化，适用于学术研究和工业应用。
+代码仓库：GitHub - NFP
+这些开源的嵌套软件各有特色和优点，选择合适的软件取决于你的具体需求和技术背景。希望这些信息对你有所帮助，如果有其他问题或需要进一步的信息，欢迎随时提问。
